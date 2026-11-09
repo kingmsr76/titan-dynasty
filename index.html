@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080e18">
+<title>Titan Dynasty</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080e18;color:#eef6ff;font-family:Arial,sans-serif}
+header{padding:22px;background:linear-gradient(130deg,#10243a,#174465)}
+h1{margin:0;color:#a8e2ff;letter-spacing:2px}
+header p{font-size:12px;color:#a9bfd3}
+nav{display:flex;overflow:auto;gap:7px;padding:12px;background:#101a28}
+button,select,input{font:inherit}
+nav button,.btn{border:1px solid #34516c;background:#14283b;color:#c7eaff;padding:10px;border-radius:9px;white-space:nowrap}
+nav button.active,.btn{background:#174666}
+main{padding:14px}
+h2{font-size:17px;color:#a8e2ff}
+input,select{background:#101c2a;color:white;border:1px solid #38516b;padding:11px;border-radius:8px;width:100%;margin:5px 0}
+.player{background:#111f2e;border:1px solid #2b4055;padding:12px;border-radius:11px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.small{font-size:12px;color:#9bb2c9}
+.actions{display:flex;gap:5px;flex-wrap:wrap}
+.actions button{font-size:11px;padding:7px}
+.panel{background:#101c2a;padding:13px;border:1px solid #2c4055;border-radius:12px;margin:12px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hidden{display:none!important}
+.pitch{background:linear-gradient(#174a37,#103d2d);border:2px solid #8bbca2;border-radius:12px;padding:14px 5px;min-height:370px;display:flex;flex-direction:column;justify-content:space-around;position:relative}
+.pitch:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px solid #8bbca2}
+.pitch:after{content:"";position:absolute;width:75px;height:75px;border:1px solid #8bbca2;border-radius:50%;top:calc(50% - 38px);left:calc(50% - 38px)}
+.line{display:flex;justify-content:space-around;position:relative;z-index:1;gap:2px}
+.slot{background:#0c2636d9;border:1px solid #9bdfff;border-radius:8px;padding:7px 3px;text-align:center;width:23%;font-size:10px;min-height:43px;overflow-wrap:anywhere}
+.slot b{display:block;color:#aee6ff;font-size:11px}
+footer{text-align:center;padding:20px;color:#718aa2;font-size:11px}
+</style>
+</head>
+<body>
+<header>
+ <div style="font-size:11px">⚽ YOUR CLUB · YOUR LEGACY</div>
+ <h1>TITAN DYNASTY</h1>
+ <p>DLS 2026 · SQUAD MANAGER</p>
+ <div class="grid">
+  <div class="panel">OWNED <h2 id="owned">0</h2></div>
+  <div class="panel">RESERVE <h2 id="reserveCount">0</h2></div>
+ </div>
+</header>
+<nav>
+ <button class="active" onclick="tab('team',this)">First Team</button>
+ <button onclick="tab('reserve',this)">Reserve</button>
+ <button onclick="tab('wish',this)">Wishlist</button>
+ <button onclick="tab('database',this)">Database</button>
+ <button onclick="tab('formation',this)">Formation</button>
+</nav>
+<main>
+<section id="team">
+ <h2>🏆 FIRST TEAM</h2>
+ <button class="btn" onclick="addPlayer('team')">+ Add Player</button>
+ <div id="teamList"></div>
+</section>
+<section id="reserve" class="hidden">
+ <h2>🪑 RESERVE SQUAD</h2>
+ <button class="btn" onclick="addPlayer('reserve')">+ Add Player</button>
+ <div id="reserveList"></div>
+</section>
+<section id="wish" class="hidden">
+ <h2>🎯 TRANSFER WISHLIST</h2>
+ <button class="btn" onclick="addPlayer('wish')">+ Add Player</button>
+ <div id="wishList"></div>
+</section>
+<section id="database" class="hidden">
+ <h2>🔎 PLAYER DATABASE</h2>
+ <input id="search" placeholder="Search player name..." oninput="showDB()">
+ <div id="dbList"></div>
+ <p class="small">Starter list is not a complete official DLS database. You can add any player yourself.</p>
+</section>
+<section id="formation" class="hidden">
+ <h2>⚽ FORMATION</h2>
+ <select id="formationSelect" onchange="drawPitch()">
+  <option>4-3-3</option><option>4-2-3-1</option>
+  <option>4-4-2</option><option>3-5-2</option>
+  <option>3-4-3</option><option>5-3-2</option>
+  <option>4-1-2-1-2</option><option>4-1-4-1</option>
+ </select>
+ <p class="small">Select a player for each position. Your selections are saved automatically.</p>
+ <div class="pitch" id="pitch"></div>
+</section>
+</main>
+<footer>TITAN DYNASTY · VERSION 1.0</footer>
+<script>
+const key='titanDynastyV1';
+let data={team:[],reserve:[],wish:[],lineup:{}};
+try{data=JSON.parse(localStorage.getItem(key))||data}catch(e){}
+if(!data.lineup)data.lineup={};
+const players=[
+['Kylian Mbappe','ST'],['Erling Haaland','ST'],
+['Vinicius Junior','LW'],['Mohamed Salah','RW'],
+['Lamine Yamal','RW'],['Jude Bellingham','AM'],
+['Bruno Fernandes','AM'],['Kevin De Bruyne','CM'],
+['Federico Valverde','CM'],['Rodri','DM'],
+['Pedri','CM'],['Virgil van Dijk','CB'],
+['William Saliba','CB'],['Achraf Hakimi','RB'],
+['Nuno Mendes','LB'],['Thibaut Courtois','GK'],
+['Gianluigi Donnarumma','GK'],['Alisson Becker','GK'],
+['Harry Kane','ST'],['Bukayo Saka','RW'],
+['Raphinha','LW'],['Theo Hernandez','LB']
+];
+function save(){
+ localStorage.setItem(key,JSON.stringify(data));
+ render();
+}
+function tab(id,button){
+ document.querySelectorAll('main section').forEach(x=>x.classList.add('hidden'));
+ document.getElementById(id).classList.remove('hidden');
+ document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+ button.classList.add('active');
+ if(id==='formation')drawPitch();
+ if(id==='database')showDB();
+}
+function addPlayer(where,existing){
+ let name=existing?.name||prompt('Player name:');
+ if(!name||!name.trim())return;
+ let number=existing?.number||prompt('Jersey number (1-99):')||'';
+ let pos=existing?.position||prompt('Position (GK, CB, LB, RB, DM, CM, AM, LW, RW, ST):')||'ST';
+ if(number&&(Number(number)<1||Number(number)>99)){alert('Number must be 1-99');return}
+ if(data[where].some(p=>p.name.toLowerCase()===name.trim().toLowerCase())){alert('Already in this list');return}
+ data[where].push({id:Date.now()+Math.random(),name:name.trim(),number,position:pos.toUpperCase()});
+ save();
+}
+function movePlayer(id,from,to){
+ let i=data[from].findIndex(p=>String(p.id)===String(id));
+ if(i<0)return;
+ let p=data[from].splice(i,1)[0];
+ if(!data[to].some(x=>x.name===p.name))data[to].push(p);
+ save();
+}
+function renderList(where){
+ let el=document.getElementById(where+'List');
+ el.innerHTML=data[where].map(p=>`
+ <div class="player">
+ <div><b>${safe(p.name)}</b><div class="small">${safe(p.position)} · #${safe(p.number||'—')}</div></div>
+ <div class="actions">
+ <button class="btn" onclick="editPlayer('${p.id}','${where}')">Edit</button>
+ ${where!=='team'?`<button class="btn" onclick="movePlayer('${p.id}','${where}','team')">Own</button>`:''}
+ ${where!=='reserve'?`<button class="btn" onclick="movePlayer('${p.id}','${where}','reserve')">Reserve</button>`:''}
+ <button onclick="removePlayer('${p.id}','${where}')">✕</button>
+ </div></div>`).join('')||'<p class="small">No players added yet.</p>';
+}
+function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function editPlayer(id,where){
+ let p=data[where].find(x=>String(x.id)===String(id));if(!p)return;
+ let name=prompt('Player name:',p.name);if(name===null)return;
+ let number=prompt('Jersey number:',p.number);if(number===null)return;
+ let pos=prompt('Position:',p.position);if(pos===null)return;
+ Object.assign(p,{name:name.trim(),number,position:pos.toUpperCase()});save();
+}
+function removePlayer(id,where){
+ if(confirm('Remove this player?')){
+ data[where]=data[where].filter(p=>String(p.id)!==String(id));
+ Object.keys(data.lineup).forEach(k=>{if(String(data.lineup[k])===String(id))delete data.lineup[k]});
+ save();
+ }
+}
+function showDB(){
+ let q=document.getElementById('search').value.toLowerCase();
+ document.getElementById('dbList').innerHTML=players.filter(p=>p[0].toLowerCase().includes(q)).map(p=>`
+ <div class="player"><div><b>${safe(p[0])}</b><div class="small">${p[1]}</div></div>
+ <button class="btn" onclick="addPlayer('team',{name:'${p[0]}',position:'${p[1]}'})">＋ Add</button></div>`).join('')||'<p>No players found.</p>';
+}
+const shapes={
+ '4-3-3':[['LW','ST','RW'],['CM','CM','CM'],['LB','CB','CB','RB'],['GK']],
+ '4-2-3-1':[['ST'],['LW','AM','RW'],['DM','DM'],['LB','CB','CB','RB'],['GK']],
+ '4-4-2':[['ST','ST'],['LM','CM','CM','RM'],['LB','CB','CB','RB'],['GK']],
+ '3-5-2':[['ST','ST'],['LM','CM','AM','CM','RM'],['CB','CB','CB'],['GK']],
+ '3-4-3':[['LW','ST','RW'],['LM','CM','CM','RM'],['CB','CB','CB'],['GK']],
+ '5-3-2':[['ST','ST'],['CM','CM','CM'],['LB','CB','CB','CB','RB'],['GK']],
+ '4-1-2-1-2':[['ST','ST'],['AM'],['CM','CM'],['DM'],['LB','CB','CB','RB'],['GK']],
+ '4-1-4-1':[['ST'],['LM','CM','CM','RM'],['DM'],['LB','CB','CB','RB'],['GK']]
+};
+function drawPitch(){
+ let f=document.getElementById('formationSelect').value;
+ let pitch=document.getElementById('pitch');
+ let slots=shapes[f];
+ pitch.innerHTML=slots.map((line,i)=>'<div class="line">'+line.map((pos,j)=>{
+ let id=f+'-'+i+'-'+j;
+ let current=data.lineup[id]||'';
+ let p=data.team.find(x=>String(x.id)===String(current));
+ let options='<option value="">Select '+pos+'</option>'+data.team.map(x=>`<option value="${x.id}" ${String(x.id)===String(current)?'selected':''}>${safe(x.name)} (#${safe(x.number||'—')})</option>`).join('');
+ return `<div class="slot"><b>${pos}</b><select style="padding:3px;font-size:9px;margin:3px 0;background:#102b38" onchange="setSlot('${id}',this.value)">${options}</select>${p?'#'+safe(p.number||'—'):''}</div>`;
+ }).join('')+'</div>').join('');
+}
+function setSlot(id,value){if(value)data.lineup[id]=value;else delete data.lineup[id];localStorage.setItem(key,JSON.stringify(data));drawPitch()}
+function render(){
+ renderList('team');renderList('reserve');renderList('wish');
+ document.getElementById('owned').textContent=data.team.length;
+ document.getElementById('reserveCount').textContent=data.reserve.length;
+}
+render();
+</script>
+</body>
+</html>
